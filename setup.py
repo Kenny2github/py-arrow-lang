@@ -4,7 +4,7 @@ with open('README.rst') as f:
     long_description = f.read()
 
 setup(name='py-arrow-lang',
-      version='2020.06.17',
+      version='2020.06.18',
       description='An implementation of Arrow ' \
       '(https://github.com/jacob-g/arrow-lang) in Python.',
       long_description=long_description,
