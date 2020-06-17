@@ -21,7 +21,7 @@ Running Arrow code
 Example Arrow program
 =====================
 
-.. code-block:: arrow
+.. code-block:: text
 
     function
     /--> int factorial(int n)
@@ -40,3 +40,11 @@ Example Arrow program
     print "Enter number:"
     n = input int
     print "Factorial of", n, "is", factorial(n)
+
+Which outputs:
+
+.. code-block:: text
+
+    Enter number:
+    5
+    Factorial of 5 is 120
