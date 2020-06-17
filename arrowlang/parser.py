@@ -6,7 +6,7 @@ from .leaves import (
     Character, Array, BinaryOperator, UnaryOperator, BinaryOperation,
     UnaryOperation, Call, Index, Main, Operator, Assignment,
     PRECEDENCE, UNOPS, BINOPS, EQUALS, ARRREG, VarType, ArrayType,
-    Input, Print, Declaration
+    Input, Print, Declaration, Require
 )
 
 __all__ = ['ParsingFailed', 'ArrowParser']
@@ -178,6 +178,10 @@ class ArrowParser:
         elif text.startswith('print', start):
             start = self.whitespace(start + 5, text, True)
             start, arg = self.printstmt(start, text)
+        elif text.startswith('require', start):
+            start = self.whitespace(start + 7, text, True)
+            start, arg = self.expression(start, text)
+            arg = Require(expr=arg)
         if arg is not None:
             return (start, arg)
         try:

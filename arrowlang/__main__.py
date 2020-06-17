@@ -6,7 +6,7 @@ from arrowlang import run
 def main(args=None):
     """The entry point of the module."""
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('file', help='A file to run. '
+    argparser.add_argument('file', nargs='?', help='A file to run. '
                            'Use - for stdin without prompt.')
     args = argparser.parse_args(args)
     if args.file:
