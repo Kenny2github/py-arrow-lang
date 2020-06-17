@@ -73,7 +73,6 @@ class ArrowTyping:
                     self.check_stmts(stmt, stmt)
                     self.check_expr(stmt, stmt.retval, stmt.rettype)
                 elif isinstance(stmt, Block):
-                    # CONFIRM: with jvvg whether there's truthiness
                     self.check_expr(func, stmt.condition, VarType.BOOL)
                     # recursively check that block
                     self.check_stmts(stmt, func)
@@ -85,7 +84,6 @@ class ArrowTyping:
                     self.check_expr(func, stmt.value,
                                     self.get_vartype(func, stmt.name))
                 elif isinstance(stmt, Require):
-                    # CONFIRM: with jvvg whether there's truthiness
                     self.check_expr(func, stmt.expr, VarType.BOOL)
                 elif isinstance(stmt, Print):
                     # print expr, expr, expr
@@ -96,7 +94,12 @@ class ArrowTyping:
                 else:
                     self.check_expr(func, stmt, None)
         except AssertionError as exc:
-            raise TypecheckFailed(exc.args[0], stmt.lineno, str(stmt))
+            sstmt = str(stmt)
+            if isinstance(stmt, (JumpDown, Function)):
+                sstmt = sstmt.splitlines()[0]
+            elif isinstance(stmt, JumpUp):
+                sstmt = sstmt.splitlines()[-1]
+            raise TypecheckFailed(exc.args[0], stmt.lineno, sstmt)
 
     def set_vartype(self, func: Union[Main, Function],
                     decl: Declaration):
@@ -251,7 +254,6 @@ class ArrowTyping:
             if expr.operator in INTOPS:
                 self.check_expr(func, expr.arg, VarType.INT)
             elif expr.operator in BOOLOPS:
-                # CONFIRM: with jvvg whether there's truthiness
                 self.check_expr(func, expr.arg, VarType.BOOL)
             elif expr.operator in ARROPS:
                 try:
@@ -377,12 +379,18 @@ class ArrowRunner:
                     values = []
                     for val in stmt.values:
                         val = self.run_expr(val, func)
-                        if isinstance(val, list) and isinstance(val[0], str):
+                        if isinstance(val, list) and (not val or isinstance(
+                                val[0], str)):
                             val = ''.join(val)
                         values.append(val)
                     print(*values)
         except Exception as exc:
-            raise ArrowError(exc.args[0], stmt.lineno, str(stmt))
+            sstmt = str(stmt)
+            if isinstance(stmt, (JumpDown, Function)):
+                sstmt = sstmt.splitlines()[0]
+            elif isinstance(stmt, JumpUp):
+                sstmt = sstmt.splitlines()[-1]
+            raise ArrowError(exc.args[0], stmt.lineno, sstmt)
 
     def run_expr(self, expr: Expression, func: Union[Main, Function]) -> Any:
         """Evaluate and return the semantic value of an expression."""
@@ -421,9 +429,23 @@ class ArrowRunner:
     def run_binop(self, expr: BinaryOperation,
                   func: Union[Main, Function]) -> Any:
         """Evaluate and return the semantic value of a binary operation."""
+        # deal with short circuiting first
+        oper = str(expr.operator)
+        if oper == 'and':
+            arg1 = self.run_expr(expr.arg1, func)
+            if arg1:
+                return self.run_expr(expr.arg2, func)
+            return False
+        if oper == 'or':
+            arg1 = self.run_expr(expr.arg1, func)
+            if arg1:
+                return arg1
+            return self.run_expr(expr.arg2, func)
+        # this is fine, because if any of the previous branches
+        # match, they ultimately return, so the expressions
+        # are never evaluated twice
         arg1 = self.run_expr(expr.arg1, func)
         arg2 = self.run_expr(expr.arg2, func)
-        oper = str(expr.operator)
         if oper == '+':
             return arg1 + arg2
         if oper == '-':
@@ -442,10 +464,6 @@ class ArrowRunner:
             return arg1 < arg2
         if oper == '>':
             return arg1 > arg2
-        if oper == 'and':
-            return arg1 and arg2
-        if oper == 'or':
-            return arg1 or arg2
         raise TypeError('How did you get here? Report this as a bug.')
 
     def run_unop(self, expr: UnaryOperation,
