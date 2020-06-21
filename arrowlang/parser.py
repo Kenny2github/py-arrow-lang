@@ -122,15 +122,14 @@ class ArrowParser:
         """Skip past (and require) indentation."""
         # - 1 for root, - 1 for current level
         needed = max(stacklen - 2, 0)
-        while needed > 0:
+        while start < len(text) and needed > 0:
             assert text[start] in r'\|' or text[start].isspace(), \
                    f'Missing {needed} indent(s)'
             if text[start] == '|':
                 needed -= 1
             start += 1
+        assert needed <= 0, f'Missing {needed} indents(s)'
         start = self.whitespace(start, text)
-        #if start == len(text):
-        #    raise IndexError
         return start
 
     def statement(self, start: int, text: str,
@@ -205,7 +204,7 @@ class ArrowParser:
     def printstmt(self, start: int, text: str) -> Print:
         """Parse a print statement."""
         end, args = self.call(start, text + ')')
-        return (end - 1, Print(values=args))
+        return (end, Print(values=args))
 
     def expression(self, start: int, text: str, paren: bool = False) \
             -> Tuple[int, Optional[Expression]]:
@@ -235,8 +234,11 @@ class ArrowParser:
                 output.append(token)
             elif isinstance(token, Operator):
                 try:
-                    while (isinstance(stack[-1], Operator)
-                           and (PRECEDENCE[stack[-1]] >= PRECEDENCE[token])):
+                    while ((isinstance(stack[-1], BinaryOperator)
+                            and (PRECEDENCE[stack[-1]] >= PRECEDENCE[token]))
+                           or
+                           (isinstance(stack[-1], UnaryOperator)
+                            and (PRECEDENCE[stack[-1]] > PRECEDENCE[token]))):
                         output.append(stack.pop())
                 except IndexError:
                     pass # stack is empty, no need to pop anything
@@ -256,7 +258,7 @@ class ArrowParser:
                                              operator=item))
             elif isinstance(item, UnaryOperator):
                 stack.append(UnaryOperation(arg=stack.pop(), operator=item))
-        assert len(stack) == 1, 'Something has gone wrong - report as bug'
+        assert len(stack) == 1, 'precedence() stack overflow - report as bug'
         return stack[0]
 
     def tokenize(self, start: int, text: str, paren: bool = False) \
@@ -276,6 +278,8 @@ class ArrowParser:
                         break
                 finally:
                     start = self.whitespace(start, text)
+            if start >= len(text):
+                break # no more tokens
             # parse another arbitrary expression
             # (which could be a parenthesized full expr)
             start, arg = self.expression_token(start, text, paren)
@@ -362,6 +366,7 @@ class ArrowParser:
         end = start
         while end < len(text) and text[end].isdecimal():
             end += 1
+        assert end > start, f'Invalid integer literal at column {start}'
         return (end, Number(value=int(text[start:end])))
 
     def variable(self, start: int, text: str) -> Tuple[int, Variable]:
@@ -379,13 +384,14 @@ class ArrowParser:
     def character(self, start: int, text: str) -> Tuple[int, Character]:
         """Parse a character literal."""
         end = start
-        while text[end] != "'":
+        while end < len(text) and text[end] != "'":
             if text[end] == '\\':
                 end += 1
                 if text[end] in r"\'":
                     end += 1
             else:
                 end += 1
+        assert end < len(text), 'Unexpected EOL'
         char = text[start:end].encode().decode('unicode-escape')
         assert len(char) == 1, f'Invalid character literal at column {start}'
         return (end + 1, Character(value=char))
@@ -393,13 +399,14 @@ class ArrowParser:
     def string(self, start: int, text: str) -> Tuple[int, String]:
         """Parse a string literal."""
         end = start
-        while text[end] != '"':
+        while end < len(text) and text[end] != '"':
             if text[end] == '\\':
                 end += 1
                 if text[end] in r'\"':
                     end += 1
             else:
                 end += 1
+        assert end < len(text), 'Unexpected EOL'
         stri = text[start:end].encode().decode('unicode-escape')
         return (end + 1, String(value=stri))
 
@@ -407,13 +414,14 @@ class ArrowParser:
         """Parse an array literal."""
         end = start
         values = []
-        while text[end] != '}':
+        while end < len(text) and text[end] != '}':
             end = self.whitespace(end, text)
             end, value = self.expression(end, text)
             values.append(value)
             end = self.whitespace(end, text)
-            if text[end] == ',':
+            if end < len(text) and text[end] == ',':
                 end += 1
+        assert end < len(text), 'Unexpected EOL'
         return (end + 1, Array(values=values))
 
     def call(self, start: int, text: str) -> Tuple[int, List[Expression]]:
@@ -427,6 +435,7 @@ class ArrowParser:
             end = self.whitespace(end, text)
             if end < len(text) and text[end] == ',':
                 end += 1
+        assert end < len(text), 'Unexpected EOL'
         return (end, args)
 
     def args(self, start: int, text: str) -> Tuple[int, List[Declaration]]:
@@ -440,6 +449,11 @@ class ArrowParser:
             end = self.whitespace(end, text)
             if end < len(text) and text[end] == ',':
                 end += 1
+            elif end < len(text):
+                assert text[end] == ')', f'Expected , or ) at column {end}'
+            else:
+                raise AssertionError('Unexpected EOL')
+        assert end < len(text), 'Unexpected EOL'
         return (end + 1, args)
 
     def declaration(self, start: int, text: str, param: bool = False) \
@@ -456,10 +470,9 @@ class ArrowParser:
         return (end, Declaration(type=typ, name=expr))
 
     def type(self, start: int, text: str) \
-            -> Tuple[int, VarType]:
+            -> Tuple[int, Union[ArrayType, VarType]]:
         """Parse a type."""
         for item in VarType:
-            # pylint: disable=no-member
             if text.startswith(str(item), start):
                 arg = item
                 start += len(str(item))
@@ -468,7 +481,6 @@ class ArrowParser:
                     arg = ArrayType(type=arg)
                     start += 2
                 break
-            # pylint: enable=no-member
         else:
             raise AssertionError(f'Expected type at column {start}')
         return (start, arg)

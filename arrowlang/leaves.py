@@ -15,11 +15,10 @@ class MemEnum(Enum):
         return value in values
 
     def __str__(self):
-        return self.value
+        return str(self.value)
 
 class Operator(MemEnum):
     """Operators ABC."""
-    pass
 
 class BinaryOperator(Operator):
     """Binary operators."""
@@ -133,7 +132,7 @@ def _dataclass(cls: type) -> type:
             if var not in kwargs and not hasattr(cls, var):
                 raise TypeError('__init__() missing required '
                                 f'keyword argument: {var!r}')
-            elif var not in kwargs:
+            if var not in kwargs:
                 kwargs[var] = getattr(cls, var)
             if not typingcheck(kwargs[var], typ):
                 if isinstance(typ, tuple):
@@ -177,7 +176,7 @@ def _dataclass(cls: type) -> type:
 class ArrayType:
     """Array types."""
     # None means empty
-    type: Union[None, VarType, 'ArrayType']
+    type: Union[None, VarType, ArrayType]
 
     def __str__(self):
         return str(self.type) + '[]'
@@ -191,7 +190,6 @@ class Statement:
 
 class Expression(Statement):
     """ABC for expressions."""
-    pass
 
 # Possible kinds of expressions
 
