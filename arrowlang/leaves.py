@@ -375,7 +375,7 @@ class JumpUp(Block):
 
     def __str__(self):
         body = self._indent(self.body)
-        return f'/-->\n{body!s}\n\\--> {self.condition!s}'
+        return f'/-->\n{body!s}\n\\--< {self.condition!s}'
 
 class Function(Block):
     """

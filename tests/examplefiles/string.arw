@@ -1,0 +1,50 @@
+function
+/--> char[] substr(char[] in, int start, int len)
+| /--< (((len > (-1)) and (start > (-1))) and ((start + len) < ((length in) + 1)))
+| | len = 0
+| \-->
+| char[] return[len]
+| /--< (len == 0)
+| | int offset
+| | offset = 0
+| | /-->
+| | | return[offset] = in[(start + offset)]
+| | | offset = (offset + 1)
+| | \--< (offset < len)
+| \-->
+^ return
+function
+/--> int indexOf(char[] str, char c)
+| int index
+| index = (-1)
+| /--< ((length str) == 0)
+| | int testIndex
+| | testIndex = (-1)
+| | /-->
+| | | testIndex = (testIndex + 1)
+| | \--< ((str[testIndex] != c) and (testIndex < ((length str) - 1)))
+| | /--< (str[testIndex] != c)
+| | | index = testIndex
+| | \-->
+| \-->
+^ index
+function
+/--> char[] concat(char[] first, char[] second)
+| char[] result[((length first) + (length second))]
+| /--< ((length first) == 0)
+| | int index
+| | index = 0
+| | /-->
+| | | result[index] = first[index]
+| | | index = (index + 1)
+| | \--< (index < (length first))
+| \-->
+| /--< ((length second) == 0)
+| | int index
+| | index = 0
+| | /-->
+| | | result[((length first) + index)] = second[index]
+| | | index = (index + 1)
+| | \--< (index < (length second))
+| \-->
+^ result

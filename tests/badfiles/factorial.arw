@@ -1,0 +1,16 @@
+function
+/--> factorial(int n)
+| int return
+| /--< n > 0
+| | return = 1
+| \-->
+| /--< n == 0
+| | return = n * factorial(n - 1)
+| \-->
+^ return
+
+main
+int n
+print "Enter a number:"
+n = input int
+print "Factorial of", n, "is", factorial(n)

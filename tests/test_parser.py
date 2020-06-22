@@ -1,7 +1,8 @@
 """Test arrowlang.parser"""
+import os
 import pytest
 from arrowlang import leaves
-from arrowlang.parser import ArrowParser
+from arrowlang.parser import ArrowParser, ParsingFailed
 
 parser = ArrowParser()
 
@@ -291,3 +292,24 @@ class TestArrowParser:
         assert isinstance(stmt, leaves.Call)
         assert stmt.name.name == 'dothing'
         assert len(stmt.args) == 0
+
+class TestParserValidity:
+    """Test parsing actual real-world Arrow files."""
+    filedir = os.path.dirname(os.path.abspath(__file__))
+
+    def test_example_files(self):
+        efiles = os.path.join(self.filedir, 'examplefiles')
+        for fname in os.listdir(efiles):
+            with open(os.path.join(efiles, fname)) as fobj:
+                text = fobj.read()
+            prgm = parser.parse(text)
+            assert isinstance(prgm, leaves.Program)
+            assert str(prgm) == text
+
+    def test_bad_files(self):
+        bfiles = os.path.join(self.filedir, 'badfiles')
+        for fname in os.listdir(bfiles):
+            with open(os.path.join(bfiles, fname)) as fobj:
+                prgm = fobj.read()
+            with pytest.raises(ParsingFailed):
+                parser.parse(prgm)
